@@ -1,7 +1,5 @@
 package com.github.brainlag.nsq.callbacks;
 
-import java.io.IOException;
-
 /**
  * Functional interface for handling errors encountered during the connection phase.
  *
@@ -13,5 +11,5 @@ import java.io.IOException;
  */
 @FunctionalInterface
 public interface ConnectErrorCallback {
-    void error(Exception e);
+    void error(Exception e, ConnectErrorType errorType);
 }

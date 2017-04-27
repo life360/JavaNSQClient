@@ -1,6 +1,7 @@
 package com.github.brainlag.nsq;
 
 import com.github.brainlag.nsq.callbacks.ConnectErrorCallback;
+import com.github.brainlag.nsq.callbacks.ConnectErrorType;
 import com.github.brainlag.nsq.callbacks.NSQErrorCallback;
 import com.github.brainlag.nsq.callbacks.NSQMessageCallback;
 import com.github.brainlag.nsq.exceptions.NoConnectionsException;
@@ -203,7 +204,7 @@ public class NSQConsumer implements Closeable {
             // very broad intentionally; that way users of the lib can determine which exceptions they care about
             // and handle them appropriately
             if (connectErrorCallback != null) {
-                connectErrorCallback.error(e);
+                connectErrorCallback.error(e, ConnectErrorType.disconnect);
             } else {
                 throw e;
             }
@@ -242,7 +243,7 @@ public class NSQConsumer implements Closeable {
                 // very broad intentionally; that way users of the lib can determine which exceptions they care about
                 // and handle them appropriately
                 if (connectErrorCallback != null) {
-                    connectErrorCallback.error(e);
+                    connectErrorCallback.error(e, ConnectErrorType.update);
                 } else {
                     throw e;
                 }
