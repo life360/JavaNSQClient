@@ -94,14 +94,11 @@ public class Connection {
     }
 
     public boolean isRequestInProgress() {
-        return requests.size() > 0;
+        return !requests.isEmpty();
     }
 
     public boolean isHeartbeatStatusOK() {
-        if (System.currentTimeMillis() - lastHeartbeatSuccess.get() > HEARTBEAT_MAX_INTERVAL) {
-            return false;
-        }
-        return true;
+        return (System.currentTimeMillis() - lastHeartbeatSuccess.get()) <= HEARTBEAT_MAX_INTERVAL;
     }
 
     public void incoming(final NSQFrame frame) {
@@ -114,9 +111,12 @@ public class Connection {
                     try {
                         responses.offer(frame, 20, TimeUnit.SECONDS);
                     } catch (final InterruptedException e) {
-                        LogManager.getLogger(this).error("Thread was interruped, probably shuthing down", e);
+                        LogManager.getLogger(this).error("Thread was interrupted, probably shutting down", e);
                         close();
                     }
+                }
+                else {
+                    LogManager.getLogger(this).info("Unmatched incoming response!");
                 }
                 return;
             }
@@ -167,7 +167,10 @@ public class Connection {
                 throw new TimeoutException("command: " + command + " timedout");
             }
 
-            responses.clear(); //clear the response queue if needed.
+            if (!responses.isEmpty()) {
+                responses.clear(); // clear the response queue if needed
+                LogManager.getLogger(this).warn("Unexpectedly non-empty response queue");
+            }
             final ChannelFuture fut = command(command);
 
             if (!fut.await(15, TimeUnit.SECONDS)) {
@@ -179,11 +182,16 @@ public class Connection {
                 throw new TimeoutException("command: " + command + " timedout");
             }
 
-            requests.poll(); //clear the request object
+            if (requests.isEmpty()) {
+                LogManager.getLogger(this).warn("Unexpectedly empty request queue");
+            }
+            else {
+                requests.poll(); // clear the request object
+            }
             return frame;
         } catch (final InterruptedException e) {
             close();
-            LogManager.getLogger(this).warn("Thread was interruped!", e);
+            LogManager.getLogger(this).warn("Thread was interrupted!", e);
         }
         return null;
     }
