@@ -94,14 +94,11 @@ public class Connection {
     }
 
     public boolean isRequestInProgress() {
-        return requests.size() > 0;
+        return !requests.isEmpty();
     }
 
     public boolean isHeartbeatStatusOK() {
-        if (System.currentTimeMillis() - lastHeartbeatSuccess.get() > HEARTBEAT_MAX_INTERVAL) {
-            return false;
-        }
-        return true;
+        return (System.currentTimeMillis() - lastHeartbeatSuccess.get()) <= HEARTBEAT_MAX_INTERVAL;
     }
 
     public void incoming(final NSQFrame frame) {
@@ -112,11 +109,15 @@ public class Connection {
             } else {
                 if (!requests.isEmpty()) {
                     try {
-                        responses.offer(frame, 20, TimeUnit.SECONDS);
+                        responses.put(frame);
                     } catch (final InterruptedException e) {
-                        LogManager.getLogger(this).error("Thread was interruped, probably shuthing down", e);
+                        LogManager.getLogger(this).error("Thread was interrupted, probably shutting down", e);
                         close();
                     }
+                }
+                else {
+                    LogManager.getLogger(this).warn("Unmatched incoming response!!! message {}",
+						    ((ResponseFrame) frame).getMessage());
                 }
                 return;
             }
@@ -126,6 +127,7 @@ public class Connection {
             if (errorCallback != null) {
                 errorCallback.error(NSQException.of((ErrorFrame) frame));
             }
+            LogManager.getLogger(this).warn("Adding ErrorFrame to responses");
             responses.add(frame);
             return;
         }
@@ -163,27 +165,26 @@ public class Connection {
 
     public NSQFrame commandAndWait(final NSQCommand command) throws TimeoutException {
         try {
-            if (!requests.offer(command, 15, TimeUnit.SECONDS)) {
-                throw new TimeoutException("command: " + command + " timedout");
-            }
+            requests.put(command);
 
-            responses.clear(); //clear the response queue if needed.
+            responses.clear(); // clear the response queue if needed
             final ChannelFuture fut = command(command);
 
             if (!fut.await(15, TimeUnit.SECONDS)) {
-                throw new TimeoutException("command: " + command + " timedout");
+                throw new TimeoutException("await command: " + command + " timedout");
             }
 
-            final NSQFrame frame = responses.poll(15, TimeUnit.SECONDS);
+            final NSQFrame frame = responses.take();
             if (frame == null) {
                 throw new TimeoutException("command: " + command + " timedout");
             }
 
-            requests.poll(); //clear the request object
+            requests.poll(); // clear the request object
+            }
             return frame;
         } catch (final InterruptedException e) {
             close();
-            LogManager.getLogger(this).warn("Thread was interruped!", e);
+            LogManager.getLogger(this).warn("Thread was interrupted!", e);
         }
         return null;
     }
