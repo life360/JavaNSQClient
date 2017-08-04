@@ -36,7 +36,6 @@ public class DefaultNSQLookup implements NSQLookup {
     @Override
     public Set<ServerAddress> lookup(String topic) {
         Set<ServerAddress> addresses = Sets.newHashSet();
-
         for (String addr : getLookupAddresses()) {
             try {
                 String topicEncoded = URLEncoder.encode(topic, Charsets.UTF_8.name());
@@ -56,6 +55,7 @@ public class DefaultNSQLookup implements NSQLookup {
         if (addresses.isEmpty()) {
             LogManager.getLogger(this).warn("Unable to connect to any NSQ Lookup servers, servers tried: {} on topic: {}", this.addresses, topic);
         }
+        LogManager.getLogger(this).debug("Found {} addresses for topic {}", addresses.size(), topic);
         return addresses;
     }
 
