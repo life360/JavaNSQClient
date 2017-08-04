@@ -7,4 +7,7 @@ build:
 install: build
 	mvn install:install-file -Dfile=target/nsq-client-${VERSION_BASE}.jar -DgroupId=com.github.brainlag -DartifactId=nsq-client -Dversion=${VERSION_LIFE360} -Dpackaging=jar
 
-.PHONY: build install
+no-test:
+	mvn -Dmaven.test.skip=true package
+
+.PHONY: build install no-test

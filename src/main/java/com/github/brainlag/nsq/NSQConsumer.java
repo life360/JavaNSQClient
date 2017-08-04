@@ -268,6 +268,7 @@ public class NSQConsumer implements Closeable {
     }
 
     private Set<ServerAddress> lookupAddresses() {
+        LogManager.getLogger(this).info("Running lookup for topic {}", topic);
         return lookup.lookup(topic);
     }
 
