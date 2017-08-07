@@ -21,7 +21,8 @@ import org.apache.logging.log4j.LogManager;
 
 import java.net.InetSocketAddress;
 import java.util.Date;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -34,8 +35,9 @@ public class Connection {
     private final Channel channel;
     private NSQConsumer consumer = null;
     private NSQErrorCallback errorCallback = null;
-    private final LinkedBlockingQueue<NSQCommand> requests = new LinkedBlockingQueue<>(1);
-    private final LinkedBlockingQueue<NSQFrame> responses = new LinkedBlockingQueue<>(1);
+    // These need to be fair queues in order to avoid thread starvation
+    private final BlockingQueue<NSQCommand> requests = new ArrayBlockingQueue<>(1, true);
+    private final BlockingQueue<NSQFrame> responses = new ArrayBlockingQueue<>(1, true);
     private static EventLoopGroup defaultGroup = null;
     private final EventLoopGroup eventLoopGroup;
     private final NSQConfig config;
