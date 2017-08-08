@@ -16,6 +16,7 @@ import org.apache.logging.log4j.core.jmx.Server;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
@@ -98,6 +99,9 @@ public class NSQConsumer implements Closeable {
             return connection;
         } catch (final NoConnectionsException e) {
             LogManager.getLogger(this).warn("Could not create connection to server {}", serverAddress.toString(), e);
+            return null;
+        } catch (final UnknownHostException e) {
+            LogManager.getLogger(this).warn("Unknown server {}", serverAddress.toString(), e);
             return null;
         }
     }
@@ -268,6 +272,7 @@ public class NSQConsumer implements Closeable {
     }
 
     private Set<ServerAddress> lookupAddresses() {
+        LogManager.getLogger(this).debug("Running lookup for topic {}", topic);
         return lookup.lookup(topic);
     }
 
