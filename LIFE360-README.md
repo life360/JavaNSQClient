@@ -38,6 +38,10 @@ repositories {
 # add
 dependencies {
     ...
+    // log4j (for nsq and must precede nsq)
+    compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.7'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.7'
+
     // nsq client
     compile group: 'com.github.brainlag', name: 'nsq-client', version: '1.0.0.LIFE3609'
 
