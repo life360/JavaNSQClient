@@ -14,7 +14,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.epoll.EpollSocketChannel;
+import io.netty.channel.kqueue.KQueueSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.AttributeKey;
 import org.apache.logging.log4j.LogManager;
@@ -28,6 +29,10 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static com.github.brainlag.nsq.NSQConfig.Transport.EPOLL;
+import static com.github.brainlag.nsq.NSQConfig.Transport.KQUEUE;
+import static com.github.brainlag.nsq.NSQConfig.Transport.NIO;
 
 public class Connection {
     public static final byte[] MAGIC_PROTOCOL_VERSION = "  V2".getBytes();
@@ -52,12 +57,24 @@ public class Connection {
     public Connection(final ServerAddress serverAddress, final NSQConfig config) throws NoConnectionsException, UnknownHostException {
         this.address = serverAddress;
         this.config = config;
+        NSQConfig.Transport transport = config.getTransport();
         final Bootstrap bootstrap = new Bootstrap();
         eventLoopGroup = (config.getEventLoopGroup() == null) ? getDefaultGroup() : config.getEventLoopGroup();
-        LogManager.getLogger(this).info("Using {} EventLoopGroup",
-                                        (config.getEventLoopGroup() == null) ? "default" : "configured");
+        LogManager.getLogger(this).info("Using {} {} EventLoopGroup",
+                                        (config.getEventLoopGroup() == null) ? "default" : "configured",
+                                        transport.name());
         bootstrap.group(eventLoopGroup);
-        bootstrap.channel(NioSocketChannel.class);
+        switch (transport) {
+            case EPOLL:
+                bootstrap.channel(EpollSocketChannel.class);
+                break;
+            case KQUEUE:
+                bootstrap.channel(KQueueSocketChannel.class);
+                break;
+            case NIO:
+                bootstrap.channel(NioSocketChannel.class);
+                break;
+        }
         bootstrap.handler(new NSQClientInitializer());
         // Start the connection attempt.
         // FORCE ipv4 for now
@@ -92,7 +109,7 @@ public class Connection {
 
     private EventLoopGroup getDefaultGroup() {
         if (defaultGroup == null) {
-            defaultGroup = new NioEventLoopGroup();
+            defaultGroup = config.newEventLoopGroup();
         }
         return defaultGroup;
     }
