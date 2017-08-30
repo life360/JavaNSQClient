@@ -2,6 +2,12 @@ package com.github.brainlag.nsq;
 
 import com.google.common.base.Preconditions;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.Epoll;
+import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.kqueue.KQueue;
+import io.netty.channel.kqueue.KQueueEventLoopGroup;
+import io.netty.channel.kqueue.KQueueSocketChannel;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.ssl.SslContext;
 import org.apache.logging.log4j.LogManager;
 
@@ -13,6 +19,7 @@ public class NSQConfig {
 
 
     public enum Compression {NO_COMPRESSION, DEFLATE, SNAPPY}
+    public enum Transport {NIO, EPOLL, KQUEUE}
 
     private String clientId;
     private String hostname;
@@ -29,6 +36,8 @@ public class NSQConfig {
     private Integer msgTimeout = null;
     private SslContext sslContext = null;
     private EventLoopGroup eventLoopGroup = null;
+    private boolean nativeEnabled = false;
+    private Transport transport;
 
     public NSQConfig() {
         try {
@@ -37,6 +46,29 @@ public class NSQConfig {
             userAgent = "JavaNSQClient";
         } catch (UnknownHostException e) {
             LogManager.getLogger(this).error("Local host name could not resolved", e);
+        }
+    }
+
+    public NSQConfig(Transport transport) {
+        if (Transport.EPOLL == transport) {
+            if (Epoll.isAvailable()) {
+                this.transport = transport;
+            } else {
+                LogManager.getLogger(this).warn("Using NIO instead of EPOLL");
+                // LogManager.getLogger(this).debug("{}", Epoll.unavailabilityCause());
+                this.transport = Transport.NIO;
+            }
+        } else if (Transport.KQUEUE == transport) {
+            if (KQueue.isAvailable()) {
+                this.transport = Transport.KQUEUE;
+            } else {
+                LogManager.getLogger(this).warn("Using NIO instead of KQUEUE");
+                // LogManager.getLogger(this).debug("{}", KQueue.unavailabilityCause());
+                this.transport = Transport.NIO;
+            }
+        }
+        if (this.transport == transport) {
+            LogManager.getLogger(this).debug("Specified and using transport {}", this.transport);
         }
     }
 
@@ -140,6 +172,31 @@ public class NSQConfig {
     }
 
     public EventLoopGroup getEventLoopGroup() {
+        return eventLoopGroup;
+    }
+
+    public Transport getTransport() {
+        return transport;
+    }
+
+    /**
+     * Allocate a transport-specific EventLoopGroup for this config
+     *
+     * @return EventLoopGroup the new EventLoopGroup
+     */
+    public EventLoopGroup newEventLoopGroup() {
+        EventLoopGroup eventLoopGroup = null;
+        switch (transport) {
+            case EPOLL:
+                eventLoopGroup = new EpollEventLoopGroup();
+                break;
+            case KQUEUE:
+                eventLoopGroup = new KQueueEventLoopGroup();
+                break;
+            case NIO:
+                eventLoopGroup = new NioEventLoopGroup();
+                break;
+        }
         return eventLoopGroup;
     }
 
